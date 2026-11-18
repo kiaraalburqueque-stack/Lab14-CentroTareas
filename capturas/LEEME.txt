@@ -1,0 +1,2 @@
+Coloca aquí las 5 capturas del emulador con estos nombres exactos:
+01-progreso.png   02-cancelada.png   03-primos.png   04-cargas.png   05-error.png
