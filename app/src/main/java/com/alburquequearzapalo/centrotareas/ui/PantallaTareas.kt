@@ -22,7 +22,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -40,6 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.alburquequearzapalo.centrotareas.model.CargaUi
 import com.alburquequearzapalo.centrotareas.model.PrimosUi
+import com.alburquequearzapalo.centrotareas.model.RegistroTiempo
 import com.alburquequearzapalo.centrotareas.ui.theme.VerdeExito
 import com.alburquequearzapalo.centrotareas.ui.theme.VerdeFondo
 import com.alburquequearzapalo.centrotareas.viewmodel.TareasViewModel
@@ -55,6 +58,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val simularError by vm.simularError.collectAsState()
     val limiteTiempo by vm.limiteTiempo.collectAsState()
     val intento by vm.intento.collectAsState()
+    val historial by vm.historial.collectAsState()
     // Ajusta este valor si en tu emulador tarda menos de 2 s o más de 5 s
     var textoN by rememberSaveable { mutableStateOf("2000000") }
     // Prueba de vida: si este contador deja de sumar, la pantalla está congelada
@@ -198,6 +202,10 @@ fun PantallaTareas(vm: TareasViewModel) {
                         Button(onClick = { vm.reintentar() }) { Text("Reintentar") }
                     }
                 }
+                if (historial.isNotEmpty()) {
+                    TablaTiempos(historial)
+                    TextButton(onClick = { vm.limpiarHistorial() }) { Text("Limpiar tabla") }
+                }
             }
         }
     }
@@ -231,4 +239,38 @@ fun Recuadro(texto: String, fondo: Color, colorTexto: Color) {
             .background(fondo, RoundedCornerShape(8.dp))
             .padding(12.dp)
     )
+}
+
+// Mejora IA 4: tabla que acumula los tiempos de cada modo
+@Composable
+fun TablaTiempos(historial: List<RegistroTiempo>) {
+    HorizontalDivider()
+    Text(
+        "Comparación de tiempos",
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold
+    )
+    FilaTabla("Modo", "Veces", "Promedio", "Último", negrita = true)
+    listOf("Una por una", "A la vez").forEach { modo ->
+        val tiempos = historial.filter { it.modo == modo }.map { it.milisegundos }
+        if (tiempos.isNotEmpty()) {
+            FilaTabla(
+                modo,
+                "${tiempos.size}",
+                "${tiempos.average().toLong()} ms",
+                "${tiempos.last()} ms"
+            )
+        }
+    }
+}
+
+@Composable
+private fun FilaTabla(a: String, b: String, c: String, d: String, negrita: Boolean = false) {
+    val peso = if (negrita) FontWeight.Bold else FontWeight.Normal
+    Row(modifier = Modifier.fillMaxWidth()) {
+        Text(a, modifier = Modifier.weight(1.4f), fontWeight = peso)
+        Text(b, modifier = Modifier.weight(0.8f), fontWeight = peso)
+        Text(c, modifier = Modifier.weight(1.2f), fontWeight = peso)
+        Text(d, modifier = Modifier.weight(1.1f), fontWeight = peso)
+    }
 }

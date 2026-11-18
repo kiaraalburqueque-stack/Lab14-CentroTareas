@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.alburquequearzapalo.centrotareas.data.TareasRepository
 import com.alburquequearzapalo.centrotareas.model.CargaUi
 import com.alburquequearzapalo.centrotareas.model.PrimosUi
+import com.alburquequearzapalo.centrotareas.model.RegistroTiempo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
@@ -128,6 +129,14 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         return bloque() // último intento: si falla, el error llega al catch de la carga
     }
 
+    // Mejora IA 4: historial de tiempos para comparar Una por una contra A la vez
+    private val _historial = MutableStateFlow<List<RegistroTiempo>>(emptyList())
+    val historial: StateFlow<List<RegistroTiempo>> = _historial.asStateFlow()
+
+    fun limpiarHistorial() {
+        _historial.value = emptyList()
+    }
+
     // Paso 6: una carga detrás de otra -> 2 s + 3 s ≈ 5 s
     fun cargarUnaPorUna() = ejecutarCarga("Una por una") {
         val perfil = repo.cargarPerfil()
@@ -160,9 +169,9 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
             try {
                 val (perfil, pedidos) =
                     if (_limiteTiempo.value) withTimeout(LIMITE_MS) { cargar() } else cargar()
-                _carga.value = CargaUi.Exito(
-                    modo, perfil, pedidos.size, System.currentTimeMillis() - inicio
-                )
+                val ms = System.currentTimeMillis() - inicio
+                _carga.value = CargaUi.Exito(modo, perfil, pedidos.size, ms)
+                _historial.value = _historial.value + RegistroTiempo(modo, ms)
             } catch (e: TimeoutCancellationException) {
                 // Va antes que el catch general: TimeoutCancellationException
                 // es una CancellationException y si no se relanzaría.

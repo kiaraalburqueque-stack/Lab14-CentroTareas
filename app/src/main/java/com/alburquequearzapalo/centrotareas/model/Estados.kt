@@ -18,3 +18,6 @@ sealed interface CargaUi {
     ) : CargaUi
     data class Error(val mensaje: String) : CargaUi
 }
+
+// Mejora IA 4: cada carga exitosa queda registrada para comparar tiempos
+data class RegistroTiempo(val modo: String, val milisegundos: Long)
