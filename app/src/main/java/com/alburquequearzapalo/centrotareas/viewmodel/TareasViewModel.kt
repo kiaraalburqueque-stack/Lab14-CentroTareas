@@ -11,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -105,10 +106,32 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         _limiteTiempo.value = valor
     }
 
+    // Mejora IA 3: reintento automático. Los pedidos se intentan hasta 3 veces,
+    // esperando 500 ms y luego 1000 ms (espera creciente) antes de rendirse.
+    private val _intento = MutableStateFlow(1)
+    val intento: StateFlow<Int> = _intento.asStateFlow()
+
+    private suspend fun <T> conReintentos(bloque: suspend () -> T): T {
+        var espera = 500L
+        repeat(MAX_INTENTOS - 1) { i ->
+            _intento.value = i + 1
+            try {
+                return bloque()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e // nunca se reintenta una cancelación
+                Log.d("REINTENTO", "Intento ${i + 1} falló: ${e.message}. Espero $espera ms")
+            }
+            delay(espera)
+            espera *= 2
+        }
+        _intento.value = MAX_INTENTOS
+        return bloque() // último intento: si falla, el error llega al catch de la carga
+    }
+
     // Paso 6: una carga detrás de otra -> 2 s + 3 s ≈ 5 s
     fun cargarUnaPorUna() = ejecutarCarga("Una por una") {
         val perfil = repo.cargarPerfil()
-        val pedidos = repo.cargarPedidos(_simularError.value)
+        val pedidos = conReintentos { repo.cargarPedidos(_simularError.value) }
         Pair(perfil, pedidos)
     }
 
@@ -116,7 +139,7 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
     fun cargarALaVez() = ejecutarCarga("A la vez") {
         coroutineScope {
             val a = async { repo.cargarPerfil() }
-            val b = async { repo.cargarPedidos(_simularError.value) }
+            val b = async { conReintentos { repo.cargarPedidos(_simularError.value) } }
             Pair(a.await(), b.await())
         }
     }
@@ -132,6 +155,7 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         if (_carga.value is CargaUi.Cargando) return
         viewModelScope.launch {
             _carga.value = CargaUi.Cargando
+            _intento.value = 1
             val inicio = System.currentTimeMillis()
             try {
                 val (perfil, pedidos) =
@@ -152,5 +176,6 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 
     companion object {
         private const val LIMITE_MS = 2000L
+        const val MAX_INTENTOS = 3
     }
 }

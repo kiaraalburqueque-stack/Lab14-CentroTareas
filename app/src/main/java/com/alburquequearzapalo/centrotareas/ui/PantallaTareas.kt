@@ -54,6 +54,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val carga by vm.carga.collectAsState()
     val simularError by vm.simularError.collectAsState()
     val limiteTiempo by vm.limiteTiempo.collectAsState()
+    val intento by vm.intento.collectAsState()
     // Ajusta este valor si en tu emulador tarda menos de 2 s o más de 5 s
     var textoN by rememberSaveable { mutableStateOf("2000000") }
     // Prueba de vida: si este contador deja de sumar, la pantalla está congelada
@@ -177,7 +178,10 @@ fun PantallaTareas(vm: TareasViewModel) {
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         CircularProgressIndicator(modifier = Modifier.padding(4.dp))
-                        Text("Cargando...")
+                        Text(
+                            if (intento > 1) "Reintentando... (intento $intento de ${TareasViewModel.MAX_INTENTOS})"
+                            else "Cargando..."
+                        )
                     }
                     is CargaUi.Exito -> Recuadro(
                         texto = "Modo: ${estado.modo}\nPerfil: ${estado.perfil}\n" +
