@@ -37,6 +37,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.alburquequearzapalo.centrotareas.model.CargaUi
 import com.alburquequearzapalo.centrotareas.model.PrimosUi
 import com.alburquequearzapalo.centrotareas.ui.theme.VerdeExito
 import com.alburquequearzapalo.centrotareas.ui.theme.VerdeFondo
@@ -49,6 +50,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val progreso by vm.progreso.collectAsState()
     val corriendo by vm.corriendo.collectAsState()
     val primos by vm.primos.collectAsState()
+    val carga by vm.carga.collectAsState()
     // Ajusta este valor si en tu emulador tarda menos de 2 s o más de 5 s
     var textoN by rememberSaveable { mutableStateOf("2000000") }
     // Prueba de vida: si este contador deja de sumar, la pantalla está congelada
@@ -134,8 +136,38 @@ fun PantallaTareas(vm: TareasViewModel) {
                 }
             }
             Tarjeta("Dos cargas") {
-                // TODO Pasos 6 y 7
-                Text("Pendiente")
+                val cargando = carga is CargaUi.Cargando
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { vm.cargarUnaPorUna() },
+                        enabled = !cargando
+                    ) { Text("Una por una") }
+                    Button(
+                        onClick = { vm.cargarALaVez() },
+                        enabled = !cargando
+                    ) { Text("A la vez") }
+                }
+                when (val estado = carga) {
+                    CargaUi.Inicial -> Text("Elige cómo cargar el perfil y los pedidos")
+                    CargaUi.Cargando -> Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                        Text("Cargando...")
+                    }
+                    is CargaUi.Exito -> Recuadro(
+                        texto = "Modo: ${estado.modo}\nPerfil: ${estado.perfil}\n" +
+                            "Pedidos: ${estado.pedidos}\nTiempo: ${estado.milisegundos} ms",
+                        fondo = VerdeFondo,
+                        colorTexto = VerdeExito
+                    )
+                    is CargaUi.Error -> Recuadro(
+                        texto = estado.mensaje,
+                        fondo = MaterialTheme.colorScheme.errorContainer,
+                        colorTexto = MaterialTheme.colorScheme.onErrorContainer
+                    )
+                }
             }
         }
     }
