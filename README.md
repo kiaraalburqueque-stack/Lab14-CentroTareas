@@ -115,3 +115,14 @@ Con `async` las dos cargas empiezan **al mismo tiempo**, y el total es el de la 
 | 7 | `feat(carga): compara carga secuencial y en paralelo con async` |
 | 8 | `feat(errores): maneja errores de carga y agrega reintento` |
 | 9 | `docs: agrega README con observaciones y capturas` |
+
+## Fase 2 · Mejoras con IA (rama `mejora-ia`)
+
+| Mejora | Qué hace | Capas que cambian |
+|---|---|---|
+| Progreso desde el Repository | La tarea simulada vive en el Repository y emite su avance con `flow { emit(...) }.flowOn(Dispatchers.Default)`. El ViewModel solo recolecta. | Repository + ViewModel |
+| Tiempo máximo | Interruptor **Tiempo máximo 2 s**: las cargas usan `withTimeout(2000)` y, si se pasan, muestran **Tardó demasiado**. | ViewModel + View |
+| Reintento automático | `cargarPedidos` se intenta hasta 3 veces, con esperas de 500 ms y 1000 ms, antes de mostrar el error. | ViewModel + View |
+| Comparación de tiempos | Tabla que acumula veces, promedio y último tiempo de **Una por una** y **A la vez**. | Model + ViewModel + View |
+
+El detalle de los prompts está en [PROMPTS.md](PROMPTS.md).
