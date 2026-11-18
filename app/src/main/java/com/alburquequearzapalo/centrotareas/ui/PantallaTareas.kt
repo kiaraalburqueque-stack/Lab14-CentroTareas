@@ -53,6 +53,7 @@ fun PantallaTareas(vm: TareasViewModel) {
     val primos by vm.primos.collectAsState()
     val carga by vm.carga.collectAsState()
     val simularError by vm.simularError.collectAsState()
+    val limiteTiempo by vm.limiteTiempo.collectAsState()
     // Ajusta este valor si en tu emulador tarda menos de 2 s o más de 5 s
     var textoN by rememberSaveable { mutableStateOf("2000000") }
     // Prueba de vida: si este contador deja de sumar, la pantalla está congelada
@@ -148,6 +149,16 @@ fun PantallaTareas(vm: TareasViewModel) {
                         onCheckedChange = { vm.cambiarSimularError(it) }
                     )
                     Text("Simular error")
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Switch(
+                        checked = limiteTiempo,
+                        onCheckedChange = { vm.cambiarLimiteTiempo(it) }
+                    )
+                    Text("Tiempo máximo 2 s")
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(

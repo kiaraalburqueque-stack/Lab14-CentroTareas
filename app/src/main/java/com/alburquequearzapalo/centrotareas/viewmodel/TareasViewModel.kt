@@ -8,12 +8,14 @@ import com.alburquequearzapalo.centrotareas.model.CargaUi
 import com.alburquequearzapalo.centrotareas.model.PrimosUi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 
@@ -94,47 +96,61 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
         _simularError.value = valor
     }
 
+    // Mejora IA 2: tiempo máximo. Con el interruptor activo, si la carga
+    // tarda más de 2 s se corta con withTimeout y se muestra "Tardó demasiado".
+    private val _limiteTiempo = MutableStateFlow(false)
+    val limiteTiempo: StateFlow<Boolean> = _limiteTiempo.asStateFlow()
+
+    fun cambiarLimiteTiempo(valor: Boolean) {
+        _limiteTiempo.value = valor
+    }
+
     // Paso 6: una carga detrás de otra -> 2 s + 3 s ≈ 5 s
-    fun cargarUnaPorUna() {
-        if (_carga.value is CargaUi.Cargando) return
-        viewModelScope.launch {
-            _carga.value = CargaUi.Cargando
-            val inicio = System.currentTimeMillis()
-            try {
-                val perfil = repo.cargarPerfil()
-                val pedidos = repo.cargarPedidos(_simularError.value)
-                _carga.value = CargaUi.Exito(
-                    "Una por una", perfil, pedidos.size, System.currentTimeMillis() - inicio
-                )
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e // la cancelación no es un error
-                _carga.value = CargaUi.Error("No se pudo cargar: " + e.message)
-            }
-        }
+    fun cargarUnaPorUna() = ejecutarCarga("Una por una") {
+        val perfil = repo.cargarPerfil()
+        val pedidos = repo.cargarPedidos(_simularError.value)
+        Pair(perfil, pedidos)
     }
 
     // Paso 6: las dos cargas a la vez con async -> máximo(2 s, 3 s) ≈ 3 s
-    fun cargarALaVez() {
-        if (_carga.value is CargaUi.Cargando) return
-        viewModelScope.launch {
-            _carga.value = CargaUi.Cargando
-            val inicio = System.currentTimeMillis()
-            try {
-                val (perfil, pedidos) = coroutineScope {
-                    val a = async { repo.cargarPerfil() }
-                    val b = async { repo.cargarPedidos(_simularError.value) }
-                    Pair(a.await(), b.await())
-                }
-                _carga.value = CargaUi.Exito(
-                    "A la vez", perfil, pedidos.size, System.currentTimeMillis() - inicio
-                )
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e // la cancelación no es un error
-                _carga.value = CargaUi.Error("No se pudo cargar: " + e.message)
-            }
+    fun cargarALaVez() = ejecutarCarga("A la vez") {
+        coroutineScope {
+            val a = async { repo.cargarPerfil() }
+            val b = async { repo.cargarPedidos(_simularError.value) }
+            Pair(a.await(), b.await())
         }
     }
 
     // Paso 7: el botón Reintentar vuelve a ejecutar la carga A la vez
     fun reintentar() = cargarALaVez()
+
+    // Lógica común de las dos cargas: estado, tiempo, límite y errores
+    private fun ejecutarCarga(
+        modo: String,
+        cargar: suspend () -> Pair<String, List<String>>
+    ) {
+        if (_carga.value is CargaUi.Cargando) return
+        viewModelScope.launch {
+            _carga.value = CargaUi.Cargando
+            val inicio = System.currentTimeMillis()
+            try {
+                val (perfil, pedidos) =
+                    if (_limiteTiempo.value) withTimeout(LIMITE_MS) { cargar() } else cargar()
+                _carga.value = CargaUi.Exito(
+                    modo, perfil, pedidos.size, System.currentTimeMillis() - inicio
+                )
+            } catch (e: TimeoutCancellationException) {
+                // Va antes que el catch general: TimeoutCancellationException
+                // es una CancellationException y si no se relanzaría.
+                _carga.value = CargaUi.Error("Tardó demasiado")
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e // la cancelación no es un error
+                _carga.value = CargaUi.Error("No se pudo cargar: " + e.message)
+            }
+        }
+    }
+
+    companion object {
+        private const val LIMITE_MS = 2000L
+    }
 }
