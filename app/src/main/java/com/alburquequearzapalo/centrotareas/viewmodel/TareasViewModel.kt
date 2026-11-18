@@ -7,16 +7,13 @@ import com.alburquequearzapalo.centrotareas.data.TareasRepository
 import com.alburquequearzapalo.centrotareas.model.CargaUi
 import com.alburquequearzapalo.centrotareas.model.PrimosUi
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
 
@@ -43,12 +40,9 @@ class TareasViewModel(private val repo: TareasRepository) : ViewModel() {
                 _progreso.value = 0f
                 _mensaje.value = "Trabajando..."
                 Log.d("HILO", "Antes: ${Thread.currentThread().name}")
-                for (i in 1..100) {
-                    withContext(Dispatchers.Default) {
-                        if (i == 1) Log.d("HILO", "Dentro: ${Thread.currentThread().name}")
-                        delay(40)
-                    }
-                    _progreso.value = i / 100f
+                // Mejora IA 1: el ViewModel solo recolecta el Flow del Repository
+                repo.progresoTarea().collect { valor ->
+                    _progreso.value = valor
                 }
                 Log.d("HILO", "Despues: ${Thread.currentThread().name}")
                 _mensaje.value = "Terminó"
